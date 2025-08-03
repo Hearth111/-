@@ -6,7 +6,7 @@ Flaskベースの簡易サーバーを提供し、POSTされたテキストか�
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from flask import Flask, Response, request, render_template, jsonify
@@ -43,7 +43,7 @@ def submit() -> Response:
         _previous_text, text, threshold=config.TOPIC_SIMILARITY_THRESHOLD
     ):
         _current_topic = text
-        timestamp_logger.log(_current_topic, datetime.utcnow())
+        timestamp_logger.log(_current_topic, datetime.now(timezone.utc))
 
     _previous_text = text
     return Response(status=204)
