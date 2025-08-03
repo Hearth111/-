@@ -14,8 +14,8 @@ def test_submit_respects_config_threshold(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "TOPIC_SIMILARITY_THRESHOLD", 0.9)
 
     client = main_module.app.test_client()
-    main_module._current_topic = ""
-    main_module._previous_text = None
+    main_module.app.config["CURRENT_TOPIC"] = ""
+    main_module.app.config["PREVIOUS_TEXT"] = None
 
     client.post("/submit", data=b"hello world")
     client.post("/submit", data=b"hello world again")
