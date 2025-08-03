@@ -7,6 +7,8 @@ Flaskベースの簡易サーバーを提供し、POSTされたテキストか�
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import time
+from typing import Iterator
 
 from flask import Flask, Response, request, render_template, jsonify
 
@@ -30,6 +32,22 @@ def index() -> str:
 def topic() -> Response:
     """現在の話題をJSON形式で返す."""
     return jsonify({"topic": app.config.get("CURRENT_TOPIC", "")})
+
+
+@app.route("/topic-stream")
+def topic_stream() -> Response:
+    """現在の話題を Server-Sent Events で配信する."""
+
+    def event_stream() -> Iterator[str]:
+        last_sent: str | None = None
+        while True:
+            topic = app.config.get("CURRENT_TOPIC", "")
+            if topic != last_sent:
+                yield f"data: {topic}\n\n"
+                last_sent = topic
+            time.sleep(0.5)
+
+    return Response(event_stream(), mimetype="text/event-stream")
 
 
 @app.route("/submit", methods=["POST"])
