@@ -23,3 +23,15 @@ def test_log_creates_file(tmp_path, monkeypatch):
     content = log_path.read_text(encoding="utf-8").strip()
     assert "test topic" in content
     assert "2024-01-01T12:00:00" in content
+
+
+def test_log_sanitizes_newlines(tmp_path, monkeypatch):
+    monkeypatch.setattr(timestamp_logger, "LOG_DIR", tmp_path)
+    ts = datetime(2024, 1, 1, 0, 0, 0)
+
+    log_path = timestamp_logger.log("line1\nline2\r\nline3", ts)
+
+    content = log_path.read_text(encoding="utf-8").strip()
+    assert content.endswith("line1 line2 line3")
+    assert "\n" not in content
+    assert "\r" not in content
