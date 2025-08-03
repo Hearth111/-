@@ -5,13 +5,13 @@
     <link rel="stylesheet" href="/static/css/style.css">
     <title>Display</title>
     <script>
-        async function fetchTopic() {
-            const res = await fetch("/topic");
-            const data = await res.json();
-            document.getElementById("topic_box").textContent = data.topic || "";
-        }
-        setInterval(fetchTopic, 1000);
-        window.addEventListener("load", fetchTopic);
+        window.addEventListener("load", () => {
+            const box = document.getElementById("topic_box");
+            const source = new EventSource("/topic-stream");
+            source.onmessage = (e) => {
+                box.textContent = e.data || "";
+            };
+        });
     </script>
 </head>
 <body>
