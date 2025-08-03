@@ -11,7 +11,7 @@ from typing import Optional
 
 from flask import Flask, Response, request, render_template, jsonify
 
-from . import transcriber, topic_detector, timestamp_logger
+from . import transcriber, topic_detector, timestamp_logger, config
 
 app = Flask(__name__)
 
@@ -39,7 +39,9 @@ def submit() -> Response:
     audio = request.data or request.form.get("text", "")
     text = transcriber.transcribe(audio)
 
-    if topic_detector.detect(_previous_text, text):
+    if topic_detector.detect(
+        _previous_text, text, threshold=config.TOPIC_SIMILARITY_THRESHOLD
+    ):
         _current_topic = text
         timestamp_logger.log(_current_topic, datetime.utcnow())
 
