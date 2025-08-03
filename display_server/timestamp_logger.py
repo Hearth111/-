@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime, date
 from pathlib import Path
+import re
 from typing import Union
 
 # ルートディレクトリの ``logs`` フォルダを指すパス
@@ -35,9 +36,12 @@ def log(topic: str, timestamp: Union[datetime, str, date]) -> Path:
     else:  # pragma: no cover - 型チェック用
         raise TypeError("timestamp must be datetime, date, or ISO format string")
 
+    # 改行文字をスペースに置換してログを1行に保つ
+    sanitized = re.sub(r"[\r\n]+", " ", topic)
+
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     log_file = LOG_DIR / f"topics_{ts:%Y-%m-%d}.txt"
-    line = f"{ts.isoformat()} - {topic}\n"
+    line = f"{ts.isoformat()} - {sanitized}\n"
 
     with log_file.open("a", encoding="utf-8") as fh:
         fh.write(line)
