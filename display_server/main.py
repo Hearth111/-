@@ -35,8 +35,16 @@ def topic() -> Response:
 @app.route("/submit", methods=["POST"])
 def submit() -> Response:
     """音声(テキスト)を受け取り、話題が変われば更新してログを残す."""
-    audio = request.data or request.form.get("text", "")
-    text = transcriber.transcribe(audio)
+    if "text" in request.form:
+        raw = request.form["text"]
+    else:
+        json_payload = request.get_json(silent=True) or {}
+        if "text" in json_payload:
+            raw = json_payload["text"]
+        else:
+            raw = request.get_data()
+
+    text = transcriber.transcribe(raw)
 
     previous = app.config.get("PREVIOUS_TEXT")
 
