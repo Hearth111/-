@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <link rel="stylesheet" href="/static/css/style.css">
     <title>Display</title>
+    <script>
+        async function fetchTopic() {
+            const res = await fetch("/topic");
+            const data = await res.json();
+            document.getElementById("topic_box").textContent = data.topic || "";
+        }
+        setInterval(fetchTopic, 1000);
+        window.addEventListener("load", fetchTopic);
+    </script>
 </head>
 <body>
     <div id="topic_box"></div>
