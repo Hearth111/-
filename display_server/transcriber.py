@@ -8,26 +8,52 @@ Base64 文字列に変換する。"""
 from __future__ import annotations
 
 import base64
+import logging
 from typing import Union
+
+try:  # pragma: no cover - whisper is optional during tests
+    import whisper
+except Exception:  # pragma: no cover - missing optional dependency
+    whisper = None
 
 
 AudioInput = Union[bytes, bytearray, memoryview, str]
+
+logger = logging.getLogger(__name__)
+_model: "whisper.Whisper" | None = None
+
+
+def _load_model() -> "whisper.Whisper" | None:
+    global _model
+    if _model is None and whisper is not None:
+        try:
+            _model = whisper.load_model("tiny")
+        except Exception as exc:  # pragma: no cover - network/model errors
+            logger.exception("failed to load whisper model: %s", exc)
+            _model = None
+    return _model
 
 
 def transcribe(audio: AudioInput) -> str:
     """Return a textual representation of ``audio``.
 
-    Args:
-        audio: 音声データ。バイト列または文字列を受け付ける。
-
-    Returns:
-        str: 変換されたテキスト。
+    If ``whisper`` が利用可能であれば音声認識を行い、失敗時はログを残して
+    フォールバックとして従来のデコード処理を用いる。
     """
 
     if isinstance(audio, str):
         return audio
 
     data = bytes(audio)
+
+    model = _load_model()
+    if model is not None:
+        try:
+            result = model.transcribe(data, fp16=False)
+            return result.get("text", "").strip()
+        except Exception as exc:  # pragma: no cover - runtime errors
+            logger.exception("whisper transcription failed: %s", exc)
+
     try:
         return data.decode("utf-8")
     except UnicodeDecodeError:

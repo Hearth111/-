@@ -8,47 +8,33 @@
 
 from __future__ import annotations
 
-import re
 from typing import Optional
 
-_WORD_RE = re.compile(r"\w+")
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+_vectorizer = TfidfVectorizer()
 
 
-def _tokenize(text: str) -> set[str]:
-    """文章を単語の集合へ変換する。
+def _similarity(a: str, b: str) -> float:
+    """Return cosine similarity between two texts using TF-IDF."""
 
-    正規表現で単語を抽出し、小文字化して返す。
-    """
-
-    return set(_WORD_RE.findall(text.lower()))
+    vectors = _vectorizer.fit_transform([a, b])
+    sim_matrix = cosine_similarity(vectors[0:1], vectors[1:2])
+    return float(sim_matrix[0, 0])
 
 
 def detect(previous: Optional[str], current: str, *, threshold: float = 0.5) -> bool:
-    """前後の文章を比較して話題の切り替わりを判定する。
-
-    Args:
-        previous: 直前の文章。 ``None`` や空文字の場合は常に ``True`` を返す。
-        current: 現在の文章。
-        threshold: ジャッカード係数の閾値。値が小さいほど厳密に判定する。
-
-    Returns:
-        bool: 話題が変わったと判定された場合 ``True``。
-    """
+    """前後の文章を比較して話題の切り替わりを判定する。"""
 
     if not previous:
         return True
 
-    prev_tokens = _tokenize(previous)
-    curr_tokens = _tokenize(current)
-
-    if not prev_tokens or not curr_tokens:
-        # どちらかが空集合なら話題が変わったとみなす
+    try:
+        similarity = _similarity(previous, current)
+    except ValueError:
+        # 片方が空だった等でベクトル化できない場合は話題が変わったとみなす
         return True
-
-    intersection = prev_tokens & curr_tokens
-    union = prev_tokens | curr_tokens
-
-    similarity = len(intersection) / len(union)
 
     return similarity < threshold
 
