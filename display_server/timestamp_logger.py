@@ -9,6 +9,7 @@ from datetime import datetime, date
 from pathlib import Path
 import re
 from typing import Union
+import logging
 
 # ルートディレクトリの ``logs`` フォルダを指すパス
 LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
@@ -46,6 +47,7 @@ def log(topic: str, timestamp: Union[datetime, str, date]) -> Path:
     with log_file.open("a", encoding="utf-8") as fh:
         fh.write(line)
 
+    logging.getLogger(__name__).info("logged topic: %s", sanitized)
     return log_file
 
 

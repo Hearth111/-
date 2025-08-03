@@ -7,17 +7,22 @@ Flaskベースの簡易サーバーを提供し、POSTされたテキストか�
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import logging
 
 from flask import Flask, Response, request, render_template, jsonify
 
-from . import transcriber, topic_detector, timestamp_logger, config
+from . import (
+    transcriber,
+    topic_detector,
+    timestamp_logger,
+    config,
+    state as state_module,
+)
 
 app = Flask(__name__)
 
-# アプリケーションの状態は ``app.config`` に保存し、
-# グローバル変数による競合を避ける
-app.config.setdefault("CURRENT_TOPIC", "")
-app.config.setdefault("PREVIOUS_TEXT", None)
+logging.basicConfig(level=config.LOG_LEVEL)
+logger = logging.getLogger(__name__)
 
 
 @app.route("/")
@@ -29,7 +34,8 @@ def index() -> str:
 @app.route("/topic")
 def topic() -> Response:
     """現在の話題をJSON形式で返す."""
-    return jsonify({"topic": app.config.get("CURRENT_TOPIC", "")})
+    st = state_module.get_state()
+    return jsonify({"topic": st.current_topic})
 
 
 @app.route("/submit", methods=["POST"])
@@ -45,16 +51,20 @@ def submit() -> Response:
             raw = request.get_data()
 
     text = transcriber.transcribe(raw)
+    st = state_module.get_state()
 
-    previous = app.config.get("PREVIOUS_TEXT")
+    with st.lock:
+        previous = st.previous_text
 
-    if topic_detector.detect(
-        previous, text, threshold=config.TOPIC_SIMILARITY_THRESHOLD
-    ):
-        app.config["CURRENT_TOPIC"] = text
-        timestamp_logger.log(text, datetime.now(timezone.utc))
+        if topic_detector.detect(
+            previous, text, threshold=config.TOPIC_SIMILARITY_THRESHOLD
+        ):
+            st.current_topic = text
+            logger.info("Topic changed: %s", text)
+            timestamp_logger.log(text, datetime.now(timezone.utc))
 
-    app.config["PREVIOUS_TEXT"] = text
+        st.previous_text = text
+
     return Response(status=204)
 
 
