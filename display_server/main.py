@@ -8,10 +8,12 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import logging
+import threading
 
 from flask import Flask, Response, request, render_template, jsonify
 
 from . import (
+    audio_listener,
     transcriber,
     topic_detector,
     timestamp_logger,
@@ -23,6 +25,39 @@ app = Flask(__name__)
 
 logging.basicConfig(level=config.LOG_LEVEL)
 logger = logging.getLogger(__name__)
+
+
+def handle_audio(raw: transcriber.AudioInput) -> None:
+    """Transcribe ``raw`` audio/text and update the topic state."""
+    text = transcriber.transcribe(raw)
+    st = state_module.get_state()
+
+    # allow tests to reset state via app.config
+    st.current_topic = app.config.get("CURRENT_TOPIC", st.current_topic)
+    st.previous_text = app.config.get("PREVIOUS_TEXT", st.previous_text)
+
+    with st.lock:
+        previous = st.previous_text
+
+        if topic_detector.detect(
+            previous, text, threshold=config.TOPIC_SIMILARITY_THRESHOLD
+        ):
+            st.current_topic = text
+            logger.info("Topic changed: %s", text)
+            timestamp_logger.log(text, datetime.now(timezone.utc))
+
+        st.previous_text = text
+
+
+def _microphone_worker(stop_event: threading.Event) -> None:
+    """Continuously listen to the microphone and process audio."""
+    while not stop_event.is_set():
+        try:
+            audio = audio_listener.listen("microphone")
+        except Exception as exc:  # pragma: no cover - hardware dependent
+            logger.exception("microphone listen failed: %s", exc)
+            continue
+        handle_audio(audio)
 
 
 @app.route("/")
@@ -50,27 +85,22 @@ def submit() -> Response:
         else:
             raw = request.get_data()
 
-    text = transcriber.transcribe(raw)
-    st = state_module.get_state()
-
-    with st.lock:
-        previous = st.previous_text
-
-        if topic_detector.detect(
-            previous, text, threshold=config.TOPIC_SIMILARITY_THRESHOLD
-        ):
-            st.current_topic = text
-            logger.info("Topic changed: %s", text)
-            timestamp_logger.log(text, datetime.now(timezone.utc))
-
-        st.previous_text = text
-
+    handle_audio(raw)
     return Response(status=204)
 
 
 def main() -> None:
-    """Run the Flask development server."""
-    app.run(debug=False)
+    """Run the Flask development server with background microphone thread."""
+    stop_event = threading.Event()
+    thread = threading.Thread(
+        target=_microphone_worker, args=(stop_event,), daemon=True
+    )
+    thread.start()
+    try:
+        app.run(debug=False)
+    finally:
+        stop_event.set()
+        thread.join()
 
 
 if __name__ == "__main__":  # pragma: no cover - CLI 実行時のみ
