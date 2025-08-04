@@ -20,3 +20,16 @@ python -m display_server.main
 ```
 python -m css_editor.editor < my_style.css
 ```
+
+## ビルド
+
+PyInstaller を使用して実行ファイルを作成できます。
+
+```
+pip install pyinstaller
+pip install -r requirements.txt
+pyinstaller run_display.spec
+pyinstaller run_editor.spec
+```
+
+`dist/` ディレクトリにそれぞれの実行ファイルが生成されます。
