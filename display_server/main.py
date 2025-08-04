@@ -9,8 +9,17 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import logging
 import threading
+import typing
+from queue import Queue
 
-from flask import Flask, Response, request, render_template, jsonify
+from flask import (
+    Flask,
+    Response,
+    request,
+    render_template,
+    jsonify,
+    stream_with_context,
+)
 
 from . import (
     audio_listener,
@@ -25,6 +34,10 @@ app = Flask(__name__)
 
 logging.basicConfig(level=config.LOG_LEVEL)
 logger = logging.getLogger(__name__)
+
+
+# connected SSE clients
+_clients: list[Queue[str]] = []
 
 
 def handle_audio(raw: transcriber.AudioInput) -> None:
@@ -45,6 +58,8 @@ def handle_audio(raw: transcriber.AudioInput) -> None:
             st.current_topic = text
             logger.info("Topic changed: %s", text)
             timestamp_logger.log(text, datetime.now(timezone.utc))
+            for q in list(_clients):
+                q.put(st.current_topic)
 
         st.previous_text = text
 
@@ -64,6 +79,26 @@ def _microphone_worker(stop_event: threading.Event) -> None:
 def index() -> str:
     """OBSブラウザソースとして読み込むHTMLを返す."""
     return render_template("display.html")
+
+
+@app.route("/stream")
+def stream() -> Response:
+    """現在の話題をSSEでストリーム配信する."""
+    q: Queue[str] = Queue()
+    _clients.append(q)
+
+    @stream_with_context
+    def event_stream() -> typing.Iterator[str]:
+        st = state_module.get_state()
+        yield f"data: {st.current_topic}\n\n"
+        try:
+            while True:
+                topic = q.get()
+                yield f"data: {topic}\n\n"
+        finally:
+            _clients.remove(q)
+
+    return Response(event_stream(), mimetype="text/event-stream")
 
 
 @app.route("/topic")
