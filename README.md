@@ -7,7 +7,7 @@ Flaskサーバーと簡易CSSエディターからなるツール。POSTされ�
 ### サーバー
 
 ```
-python -m display_server.main
+python run_display.py
 ```
 
 - `POST /submit` にテキストを送信すると話題が更新され、必要に応じて `logs/` にタイムスタンプ付きで記録されます。
@@ -18,14 +18,14 @@ python -m display_server.main
 PyQt5製のGUIでCSSを編集します。以下のコマンドでエディターを起動します。
 
 ```
-python -m css_editor.editor
+python run_editor.py
 ```
 
 1. 起動後、テーマ選択ドロップダウンでテンプレートを読み込みます。
 2. フォントやCSSを編集すると右側のプレビューに即時反映されます。
 3. 「保存」ボタンで `static/css/style.css` に書き込みます。
 
-> 補足: CLIからCSSファイルを読み込ませる場合は `python -m css_editor.editor < my_style.css` を実行できます。
+> 補足: CLIからCSSファイルを読み込ませる場合は `python run_editor.py < my_style.css` を実行できます。
 
 ## ビルド
 
