@@ -15,11 +15,17 @@ python -m display_server.main
 
 ### CSSエディター
 
-標準入力からCSSを読み取り `static/css/style.css` に保存します。
+PyQt5製のGUIでCSSを編集します。以下のコマンドでエディターを起動します。
 
 ```
-python -m css_editor.editor < my_style.css
+python -m css_editor.editor
 ```
+
+1. 起動後、テーマ選択ドロップダウンでテンプレートを読み込みます。
+2. フォントやCSSを編集すると右側のプレビューに即時反映されます。
+3. 「保存」ボタンで `static/css/style.css` に書き込みます。
+
+> 補足: CLIからCSSファイルを読み込ませる場合は `python -m css_editor.editor < my_style.css` を実行できます。
 
 ## ビルド
 
